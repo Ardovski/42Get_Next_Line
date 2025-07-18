@@ -1,16 +1,17 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   get_next_line.c                                    :+:      :+:    :+:   */
+/*   get_next_line_bonus.c                              :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: uardaozdes <uardaozdes@gmail.com>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/07/18 15:21:47 by uardaozdes        #+#    #+#             */
-/*   Updated: 2025/07/18 18:24:54 by uardaozdes       ###   ########.fr       */
+/*   Created: 2025/07/18 17:28:48 by uardaozdes        #+#    #+#             */
+/*   Updated: 2025/07/18 18:23:30 by uardaozdes       ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "get_next_line.h"
+#include "get_next_line_bonus.h"
+#include <stdlib.h>
 #include <unistd.h>
 
 static void	*gnl_free_and_return(char *ptr1, char *ptr2, void *return_value)
@@ -38,65 +39,70 @@ static char	*gnl_extract_line_with_newline(char *buffer)
 	return (sub);
 }
 
-static char	*gnl_save_remaining_text(char *buffer)
+static char	*gnl_save_remaining_text(char *buf)
 {
 	size_t	i;
 	char	*remainder;
 
 	i = 0;
-	while (buffer[i] && buffer[i] != '\n')
+	while (buf[i] && buf[i] != '\n')
 		i++;
-	if (!buffer[i])
-		return (gnl_free_and_return(buffer, NULL, NULL));
-	remainder = gnl_dup(buffer + i + 1);
-	return (gnl_free_and_return(buffer, NULL, remainder));
+	if (!buf[i])
+	{
+		free(buf);
+		return (NULL);
+	}
+	remainder = gnl_dup(buf + i + 1);
+	free(buf);
+	return (remainder);
 }
 
-static char	*gnl_read_and_accumulate(int fd, char *buffer)
+static char	*gnl_read_and_accumulate(int fd, char *buf)
 {
 	char	*tmp;
 	ssize_t	bytes_read;
 
 	tmp = malloc(BUFFER_SIZE + 1);
 	if (!tmp)
-		return (gnl_free_and_return(buffer, NULL, NULL));
+		return (gnl_free_and_return(buf, NULL, NULL));
 	bytes_read = 1;
-	while (bytes_read > 0 && (!buffer || !gnl_find_character(buffer, '\n')))
+	while (bytes_read > 0 && (!buf || !gnl_find_character(buf, '\n')))
 	{
 		bytes_read = read(fd, tmp, BUFFER_SIZE);
 		if (bytes_read < 0)
-			return (gnl_free_and_return(tmp, buffer, NULL));
+			return (gnl_free_and_return(tmp, buf, NULL));
 		if (bytes_read > 0)
 		{
 			tmp[bytes_read] = '\0';
-			if (!buffer)
-				buffer = gnl_dup(tmp);
+			if (!buf)
+				buf = gnl_dup(tmp);
 			else
-				buffer = gnl_join(buffer, tmp);
-			if (!buffer)
+				buf = gnl_join(buf, tmp);
+			if (!buf)
 				return (gnl_free_and_return(tmp, NULL, NULL));
 		}
 	}
-	return (gnl_free_and_return(tmp, NULL, buffer));
+	free(tmp);
+	return (buf);
 }
 
 char	*get_next_line(int fd)
 {
-	static char	*buffer;
+	static char	*buffer[FD_MAX];
 	char		*line;
 
-	if (fd < 0 || BUFFER_SIZE <= 0)
+	if (fd < 0 || fd >= FD_MAX || BUFFER_SIZE <= 0)
 		return (NULL);
-	buffer = gnl_read_and_accumulate(fd, buffer);
-	if (!buffer)
+	buffer[fd] = gnl_read_and_accumulate(fd, buffer[fd]);
+	if (!buffer[fd])
 		return (NULL);
-	line = gnl_extract_line_with_newline(buffer);
+	line = gnl_extract_line_with_newline(buffer[fd]);
 	if (!line)
 	{
-		free(buffer);
-		buffer = NULL;
+		free(buffer[fd]);
+		buffer[fd] = NULL;
 		return (NULL);
 	}
-	buffer = gnl_save_remaining_text(buffer);
+	buffer[fd] = gnl_save_remaining_text(buffer[fd]);
 	return (line);
 }

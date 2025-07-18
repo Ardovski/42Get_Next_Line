@@ -1,16 +1,17 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   get_next_line_utils.c                              :+:      :+:    :+:   */
+/*   get_next_line_utils_bonus.c                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: uardaozdes <uardaozdes@gmail.com>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/07/18 15:22:15 by uardaozdes        #+#    #+#             */
-/*   Updated: 2025/07/18 17:53:23 by uardaozdes       ###   ########.fr       */
+/*   Created: 2025/07/18 15:32:38 by uardaozdes        #+#    #+#             */
+/*   Updated: 2025/07/18 18:13:25 by uardaozdes       ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "get_next_line.h"
+#include "get_next_line_bonus.h"
+#include <stdlib.h>
 
 size_t	gnl_string_length(const char *s)
 {
