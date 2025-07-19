@@ -6,7 +6,7 @@
 /*   By: uardaozdes <uardaozdes@gmail.com>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/07/18 17:28:48 by uardaozdes        #+#    #+#             */
-/*   Updated: 2025/07/18 18:23:30 by uardaozdes       ###   ########.fr       */
+/*   Updated: 2025/07/19 15:09:35 by uardaozdes       ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,16 +17,22 @@
 static void	*gnl_free_and_return(char *ptr1, char *ptr2, void *return_value)
 {
 	if (ptr1)
+	{
 		free(ptr1);
+		ptr1 = NULL;
+	}
 	if (ptr2)
+	{
 		free(ptr2);
+		ptr2 = NULL;
+	}
 	return (return_value);
 }
 
-static char	*gnl_extract_line_with_newline(char *buffer)
+static char	*gnl_get_line(char *buffer)
 {
 	size_t	i;
-	char	*sub;
+	char	*line;
 
 	i = 0;
 	if (!buffer || buffer[0] == '\0')
@@ -35,55 +41,55 @@ static char	*gnl_extract_line_with_newline(char *buffer)
 		i++;
 	if (buffer[i] == '\n')
 		i++;
-	sub = gnl_extract_substring(buffer, 0, i);
-	return (sub);
+	line = gnl_substr(buffer, 0, i);
+	if (!line)
+		return (NULL);
+	return (line);
 }
 
-static char	*gnl_save_remaining_text(char *buf)
+static char	*gnl_new_buffer(char *buffer)
 {
 	size_t	i;
 	char	*remainder;
 
 	i = 0;
-	while (buf[i] && buf[i] != '\n')
+	while (buffer[i] && buffer[i] != '\n')
 		i++;
-	if (!buf[i])
-	{
-		free(buf);
-		return (NULL);
-	}
-	remainder = gnl_dup(buf + i + 1);
-	free(buf);
-	return (remainder);
+	if (!buffer[i])
+		return (gnl_free_and_return(buffer, NULL, NULL));
+	remainder = gnl_dup(buffer + i + 1);
+	if (!remainder)
+		return (gnl_free_and_return(buffer, NULL, NULL));
+	return (gnl_free_and_return(buffer, NULL, remainder));
 }
 
-static char	*gnl_read_and_accumulate(int fd, char *buf)
+static char	*gnl_read_buffer(int fd, char *buffer)
 {
 	char	*tmp;
 	ssize_t	bytes_read;
 
 	tmp = malloc(BUFFER_SIZE + 1);
 	if (!tmp)
-		return (gnl_free_and_return(buf, NULL, NULL));
+		return (gnl_free_and_return(buffer, NULL, NULL));
 	bytes_read = 1;
-	while (bytes_read > 0 && (!buf || !gnl_find_character(buf, '\n')))
+	while (bytes_read > 0 && (!buffer || !gnl_strchar(buffer, '\n')))
 	{
 		bytes_read = read(fd, tmp, BUFFER_SIZE);
 		if (bytes_read < 0)
-			return (gnl_free_and_return(tmp, buf, NULL));
-		if (bytes_read > 0)
+			return (gnl_free_and_return(tmp, buffer, NULL));
+		tmp[bytes_read] = '\0';
+		if (!buffer)
 		{
-			tmp[bytes_read] = '\0';
-			if (!buf)
-				buf = gnl_dup(tmp);
-			else
-				buf = gnl_join(buf, tmp);
-			if (!buf)
+			buffer = gnl_dup(tmp);
+			if (!buffer)
 				return (gnl_free_and_return(tmp, NULL, NULL));
 		}
+		else
+			buffer = gnl_join(buffer, tmp);
+		if (!buffer)
+			return (gnl_free_and_return(tmp, NULL, NULL));
 	}
-	free(tmp);
-	return (buf);
+	return (gnl_free_and_return(tmp, NULL, buffer));
 }
 
 char	*get_next_line(int fd)
@@ -93,16 +99,21 @@ char	*get_next_line(int fd)
 
 	if (fd < 0 || fd >= FD_MAX || BUFFER_SIZE <= 0)
 		return (NULL);
-	buffer[fd] = gnl_read_and_accumulate(fd, buffer[fd]);
+	buffer[fd] = gnl_read_buffer(fd, buffer[fd]);
 	if (!buffer[fd])
 		return (NULL);
-	line = gnl_extract_line_with_newline(buffer[fd]);
+	line = gnl_get_line(buffer[fd]);
 	if (!line)
 	{
 		free(buffer[fd]);
 		buffer[fd] = NULL;
 		return (NULL);
 	}
-	buffer[fd] = gnl_save_remaining_text(buffer[fd]);
+	buffer[fd] = gnl_new_buffer(buffer[fd]);
+	if (!buffer[fd] && gnl_strchar(line, '\n'))
+	{
+		free(line);
+		return (NULL);
+	}
 	return (line);
 }
